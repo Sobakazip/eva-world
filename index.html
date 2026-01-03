@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Первый год Евы</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                    },
+                    keyframes: {
+                        'bounce-slow': {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    },
+                    animation: {
+                        'bounce-slow': 'bounce-slow 3s infinite ease-in-out',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js" crossorigin="anonymous"></script>
+
+    <script src="data/timeline.js"></script>
+    <script src="data/eco.js"></script>
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #e5e7eb;
+        }
+        
+        /* Слайдер */
+        input[type=range].custom-slider { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range].custom-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 28px; width: 28px; border-radius: 50%; background: #FB7185; border: 4px solid white; cursor: pointer; margin-top: -12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: transform 0.1s; }
+        input[type=range].custom-slider::-webkit-slider-thumb:active { transform: scale(1.1); }
+        input[type=range].custom-slider::-webkit-slider-runnable-track { width: 100%; height: 8px; cursor: pointer; background: #FFE4E6; border-radius: 99px; }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ВСТРОЕННЫЕ ИКОНКИ (SVG) ---
+        const IconBase = ({ children, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>
+        );
+
+        const Icons = {
+            Baby: (props) => <IconBase {...props}><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/></IconBase>,
+            Home: (props) => <IconBase {...props}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></IconBase>,
+            Leaf: (props) => <IconBase {...props}><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></IconBase>,
+            AlertCircle: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></IconBase>,
+            CheckCircle: (props) => <IconBase {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconBase>,
+            ExternalLink: (props) => <IconBase {...props}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></IconBase>,
+            ChevronRight: (props) => <IconBase {...props}><path d="m9 18 6-6-6-6"/></IconBase>,
+            Gift: (props) => <IconBase {...props}><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.9 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></IconBase>,
+            HelpCircle: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></IconBase>,
+            Cloud: (props) => <IconBase {...props}><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M19 15.5c2.485 0 4.5-2.015 4.5-4.5S21.485 6.5 19 6.5c-2.485 0-4.5 2.015-4.5 4.5"/></IconBase>,
+            Lock: (props) => <IconBase {...props}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></IconBase>,
+            Play: (props) => <IconBase {...props}><polygon points="5 3 19 12 5 21 5 3"/></IconBase>,
+            Music: (props) => <IconBase {...props}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></IconBase>
+        };
+
+        // --- ЗАГРУЗКА ДАННЫХ ИЗ WINDOW ---
+        // Если файлы не подгрузились, используем пустые объекты, чтобы не было белого экрана
+        const timelineData = (window.EVA_DATA && window.EVA_DATA.timeline) ? window.EVA_DATA.timeline : {};
+        const ecoData = (window.EVA_DATA && window.EVA_DATA.ecoCategories) ? window.EVA_DATA.ecoCategories : [];
+
+        // --- КОМПОНЕНТЫ ---
+
+        const Header = () => (
+            <div className="pt-8 pb-2 px-6 text-center relative z-10">
+                <h1 className="text-3xl font-extrabold text-rose-500 tracking-tight drop-shadow-sm font-sans">Первый год Евы</h1>
+                <p className="text-sm text-rose-400 font-semibold mt-1">Интерактивный гид</p>
+            </div>
+        );
+
+        const TimeMachineBlock = ({ currentMonth, setMonth, realAge }) => {
+            let titleText = "";
+            let emoji = "🐛";
+            if (currentMonth === realAge) { titleText = `Еве сейчас ${currentMonth} месяца`; emoji = "🐣"; } 
+            else if (currentMonth > realAge) { titleText = `Когда Еве будет ${currentMonth} месяцев...`; emoji = "🚀"; } 
+            else { titleText = `Когда Еве было ${currentMonth} месяца...`; emoji = "👶"; }
+            if (currentMonth >= 6) emoji = "🏃‍♀️";
+
+            return (
+                <div className="mx-4 mb-6 p-5 glass-panel rounded-3xl shadow-lg border border-white/60 bg-white/80 backdrop-blur-xl relative z-20">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <p className="text-xs font-bold text-rose-400 uppercase tracking-widest mb-1">Машина времени</p>
+                            <h2 className="text-xl font-black text-gray-800 leading-tight">{titleText}</h2>
+                        </div>
+                        <div className="h-12 w-12 bg-rose-100 rounded-full flex items-center justify-center text-3xl shadow-inner animate-bounce-slow flex-shrink-0">{emoji}</div>
+                    </div>
+                    <div className="relative pt-2 pb-1">
+                        <input type="range" min="2" max="12" step="1" value={currentMonth} onChange={(e) => setMonth(parseInt(e.target.value))} className="w-full custom-slider z-20 relative" />
+                        <div className="flex justify-between w-full px-1 mt-2">
+                            {[...Array(11)].map((_, i) => (
+                                <div key={i} className={`w-1 h-1 rounded-full ${i + 2 === currentMonth ? 'bg-rose-400 transform scale-150' : 'bg-rose-200'}`}></div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TabContentTimeline = ({ currentMonth, setMonth, realAge }) => {
+            const data = timelineData[currentMonth];
+            const [showTrouble, setShowTrouble] = useState(false);
+
+            // Если данных нет (файл не загрузился или пустой месяц), показываем сообщение
+            if (!data) {
+                return (
+                    <div className="px-4 pt-10 text-center font-sans">
+                        <Header />
+                        <TimeMachineBlock currentMonth={currentMonth} setMonth={setMonth} realAge={realAge} />
+                        <div className="bg-white p-6 rounded-3xl shadow-sm mt-4">
+                            <p className="text-gray-500">Данные для этого месяца пока не загружены или файл data/timeline.js не найден.</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="px-0 pb-28 animate-fade-in relative z-10 font-sans">
+                    <Header />
+                    <TimeMachineBlock currentMonth={currentMonth} setMonth={setMonth} realAge={realAge} />
+                    <div className="px-4">
+                        <div className="mb-8">
+                            <h2 className="text-2xl font-black text-gray-800 text-center mb-2 leading-tight">{data.funnyTitle}</h2>
+                            <p className="text-center text-gray-600 mb-6 leading-relaxed px-2 text-sm">{data.description}</p>
+                            <div className="bg-white rounded-3xl shadow-sm border border-rose-100 p-5 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-200 to-orange-200"></div>
+                                <h3 className="font-bold text-rose-900 flex items-center gap-2 mb-4"><Icons.Gift size={20} className="text-rose-500" /> Что нового?</h3>
+                                <div className="space-y-6">
+                                    {data.changes && data.changes.map((item, idx) => (
+                                        <div key={idx} className="relative pl-4 border-l-2 border-rose-200">
+                                            <p className="font-bold text-gray-800 text-sm mb-1">{item.text}</p>
+                                            <p className="text-xs text-gray-500 leading-snug flex items-start gap-1"><Icons.HelpCircle size={10} className="mt-0.5 flex-shrink-0 text-rose-300" />{item.subtext}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-rose-500 to-orange-400 rounded-3xl p-6 text-white shadow-xl shadow-rose-200 mb-6 relative overflow-hidden transform transition-transform hover:scale-[1.01]">
+                            <div className="absolute top-0 right-0 -mr-4 -mt-4 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+                            <div className="relative z-10">
+                                <h3 className="font-bold text-xs uppercase tracking-widest text-rose-100 mb-2 flex items-center gap-2"><Icons.CheckCircle size={14} /> Главная миссия</h3>
+                                <h4 className="text-2xl font-black mb-3 leading-tight">{data.mainQuest.title}</h4>
+                                <p className="text-rose-50 text-sm leading-relaxed font-medium">{data.mainQuest.text}</p>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-3 mb-8">
+                            <h3 className="font-bold text-gray-400 text-xs uppercase tracking-wider ml-1">Побочные квесты</h3>
+                            {data.sideQuests && data.sideQuests.map((quest, idx) => (
+                                <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+                                    <div className="h-8 w-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 font-bold text-sm border border-rose-100 flex-shrink-0">{idx + 1}</div>
+                                    <div>
+                                        <span className="text-gray-600 text-sm font-semibold block mb-1">{typeof quest === 'object' ? quest.text : quest}</span>
+                                        {typeof quest === 'object' && quest.description && (
+                                            <p className="text-xs text-gray-500 leading-snug">{quest.description}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-indigo-50 rounded-2xl p-1 border border-indigo-100">
+                            <button onClick={() => setShowTrouble(!showTrouble)} className="w-full p-4 flex items-center justify-between rounded-xl hover:bg-indigo-100/50 transition-colors">
+                                <span className="font-bold text-indigo-900 flex items-center gap-2 text-sm"><Icons.AlertCircle size={18} /> Что если что-то не так?</span>
+                                <Icons.ChevronRight size={18} className={`transform transition-transform text-indigo-400 ${showTrouble ? 'rotate-90' : ''}`} />
+                            </button>
+                            {showTrouble && (
+                                <div className="px-4 pb-4 pt-2 animate-fade-in">
+                                    <p className="font-bold text-gray-800 text-sm mb-1">{data.troubleshooting.problem}</p>
+                                    <p className="text-indigo-800/80 text-xs leading-relaxed mb-2">{data.troubleshooting.solution}</p>
+                                    {data.troubleshooting.alternative && (
+                                         <div className="mt-2 pt-2 border-t border-indigo-100">
+                                            <p className="text-[10px] font-bold text-indigo-400 uppercase">Альтернатива:</p>
+                                            <p className="text-indigo-800/80 text-xs leading-relaxed">{data.troubleshooting.alternative}</p>
+                                         </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TabContentEnvironment = ({ currentMonth }) => {
+            // Если данных нет, берем ближайший доступный (например, 2 месяц) или null
+            const data = timelineData[currentMonth] || timelineData[2];
+            const [isDbOpen, setIsDbOpen] = useState(false);
+            
+            if (!data) return null;
+
+            return (
+                <div className="px-4 pt-8 pb-28 animate-fade-in relative z-10 font-sans">
+                    <div className="mb-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-3xl text-white shadow-lg overflow-hidden">
+                        <button onClick={() => setIsDbOpen(!isDbOpen)} className="w-full p-6 flex items-center justify-between text-left">
+                            <div className="flex items-center gap-3"><Icons.Cloud size={24} className="text-blue-200" /><div><h3 className="font-bold text-lg leading-none">База знаний</h3><p className="text-blue-200 text-xs mt-1 font-medium">Книги, видео, инструкции</p></div></div>
+                            <Icons.ChevronRight size={20} className={`transform transition-transform ${isDbOpen ? 'rotate-90' : ''} text-blue-200`} />
+                        </button>
+                        {isDbOpen && (
+                            <div className="px-6 pb-6 pt-2 animate-fade-in">
+                                <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                                    <div className="flex items-start gap-2 mb-2"><Icons.Lock size={14} className="mt-1 text-blue-200" /><p className="text-sm font-bold">Доступ через NotebookLM</p></div>
+                                    <p className="text-xs text-blue-100 leading-relaxed mb-3">Вся информация структурирована ИИ Google.</p>
+                                    <a href="https://notebooklm.google.com/notebook/5f5f2665-56c6-4b27-baa3-5272285eec95?authuser=0" target="_blank" className="block text-center w-full bg-white text-indigo-600 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-blue-50 transition-colors">Перейти к базе</a>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="bg-emerald-50 p-6 rounded-3xl mb-8 text-emerald-900 shadow-sm border border-emerald-100">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Icons.Home size={24} className="text-emerald-600" /> Адаптация дома</h2>
+                        <div className="space-y-3">
+                            {data.environment.checklist.map((item, i) => (
+                                <div key={i} className="flex items-start gap-3 bg-white/60 p-3 rounded-xl"><div className="mt-0.5 text-emerald-500"><Icons.CheckCircle size={16} /></div><span className="text-emerald-900 text-sm font-medium leading-snug">{item}</span></div>
+                            ))}
+                        </div>
+                    </div>
+                    <h3 className="font-bold text-gray-800 mb-4 ml-1 text-lg">Мастхэв месяца</h3>
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                        {data.environment.products.map((prod, i) => (
+                            <div key={i} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition-shadow">
+                                <div className="bg-gray-50 rounded-xl aspect-square mb-3 overflow-hidden relative"><img src={prod.image} className="w-full h-full object-cover" alt={prod.name} /></div>
+                                <span className="font-bold text-gray-700 text-xs leading-tight mb-1">{prod.name}</span>
+                                
+                                {prod.desc && (
+                                    <p className="text-[10px] text-gray-500 leading-snug mb-3 flex-grow">
+                                        {prod.desc}
+                                    </p>
+                                )}
+
+                                <a href={prod.link} target="_blank" className="mt-auto flex items-center justify-center gap-2 w-full py-2.5 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-colors">Найти <Icons.ExternalLink size={12} /></a>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const EcoAccordionItem = ({ category }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const IconComponent = Icons[category.icon] || Icons.Leaf;
+
+            return (
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center"><IconComponent size={20} className="text-teal-500"/></div><span className="font-bold text-gray-800 text-sm">{category.title}</span></div>
+                        <Icons.ChevronRight size={18} className={`transform transition-transform text-gray-400 ${isOpen ? 'rotate-90' : ''}`} />
+                    </button>
+                    {isOpen && (
+                        <div className="px-5 pb-5 pt-0 animate-fade-in">
+                            <div className="space-y-3 mt-2">
+                                {category.items.map((item, idx) => (
+                                    <div key={idx} className={`p-3 rounded-xl border-l-4 ${item.status === 'safe' ? 'bg-green-50 border-green-400' : item.status === 'danger' ? 'bg-red-50 border-red-400' : 'bg-amber-50 border-amber-400'}`}>
+                                        <h4 className={`text-xs font-bold mb-1 ${item.status === 'safe' ? 'text-green-800' : item.status === 'danger' ? 'text-red-800' : 'text-amber-800'}`}>{item.title}</h4>
+                                        <p className="text-xs text-gray-600 leading-snug">{item.text}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const TabContentEco = () => {
+            return (
+                <div className="px-4 pt-8 pb-28 animate-fade-in relative z-10 font-sans">
+                    <div className="mb-6 text-center"><h2 className="text-2xl font-black text-gray-800 mb-2">Эко-Сканер</h2><p className="text-gray-500 text-xs max-w-xs mx-auto">Быстрые факты из исследований. Нажми на категорию, чтобы узнать правду.</p></div>
+                    <div className="space-y-4">{ecoData.map((cat) => <EcoAccordionItem key={cat.id} category={cat} />)}</div>
+                    <div className="mt-8 bg-teal-50 rounded-2xl p-6 text-center border border-teal-100"><Icons.Leaf className="mx-auto text-teal-500 mb-3" size={28} /><p className="text-teal-800 text-xs font-medium">Информация собрана на основе исследований ВОЗ.</p></div>
+                </div>
+            );
+        };
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('timeline');
+            const realAge = 3; 
+            const [selectedMonth, setSelectedMonth] = useState(realAge);
+
+            const renderContent = () => {
+                switch (activeTab) {
+                    case 'timeline': return <TabContentTimeline currentMonth={selectedMonth} setMonth={setSelectedMonth} realAge={realAge} />;
+                    case 'env': return <TabContentEnvironment currentMonth={selectedMonth} />;
+                    case 'eco': return <TabContentEco />;
+                    default: return <TabContentTimeline currentMonth={selectedMonth} setMonth={setSelectedMonth} realAge={realAge} />;
+                }
+            };
+
+            return (
+                <div className="font-sans min-h-screen bg-gray-200 flex justify-center items-start overflow-hidden relative">
+                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 10c2 0 3 1 4 2 1-1 3-2 5-2s4 2 4 5c0 3-4 7-9 7s-9-4-9-7c0-3 2-5 5-5z' fill='%23FB7185'/%3E%3Ccircle cx='45' cy='45' r='3' fill='%2334D399'/%3E%3C/svg%3E")`, animation: 'slideBackground 60s linear infinite' }}></div>
+                    <div className="w-full max-w-md bg-rose-50/50 min-h-screen shadow-2xl relative overflow-hidden backdrop-blur-sm">
+                        <div className="mt-0">{renderContent()}</div>
+                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-lg border-t border-gray-100 pb-safe pt-2 px-6 flex justify-between items-center z-50 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+                            <button onClick={() => setActiveTab('timeline')} className={`flex flex-col items-center p-3 transition-all duration-300 ${activeTab === 'timeline' ? 'text-rose-500 scale-110' : 'text-gray-400 hover:text-rose-300'}`}><Icons.Baby size={24} strokeWidth={activeTab === 'timeline' ? 2.5 : 2} /><span className="text-[10px] font-bold mt-1">Развитие</span></button>
+                            <button onClick={() => setActiveTab('env')} className={`flex flex-col items-center p-3 transition-all duration-300 ${activeTab === 'env' ? 'text-emerald-500 scale-110' : 'text-gray-400 hover:text-emerald-300'}`}><Icons.Home size={24} strokeWidth={activeTab === 'env' ? 2.5 : 2} /><span className="text-[10px] font-bold mt-1">Среда</span></button>
+                            <button onClick={() => setActiveTab('eco')} className={`flex flex-col items-center p-3 transition-all duration-300 ${activeTab === 'eco' ? 'text-teal-500 scale-110' : 'text-gray-400 hover:text-teal-300'}`}><Icons.Leaf size={24} strokeWidth={activeTab === 'eco' ? 2.5 : 2} /><span className="text-[10px] font-bold mt-1">Эко-скан</span></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
