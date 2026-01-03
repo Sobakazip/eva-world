@@ -84,11 +84,15 @@
         };
 
         // --- ЗАГРУЗКА ДАННЫХ ИЗ WINDOW ---
-        // Если файлы не подгрузились, используем пустые объекты, чтобы не было белого экрана
         const timelineData = (window.EVA_DATA && window.EVA_DATA.timeline) ? window.EVA_DATA.timeline : {};
         const ecoData = (window.EVA_DATA && window.EVA_DATA.ecoCategories) ? window.EVA_DATA.ecoCategories : [];
 
-        // --- КОМПОНЕНТЫ ---
+        // --- ЛОГИКА ДАТ И СКЛОНЕНИЙ ---
+        
+        // Функция склонения (1 день, 2 дня, 5 дней)
+        const declOfNum = (n, titles) => {
+            return titles[(n % 10 === 1 && n % 100 !== 11) ? 0 : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 1 : 2];
+        }
 
         const Header = () => (
             <div className="pt-8 pb-2 px-6 text-center relative z-10">
@@ -97,20 +101,31 @@
             </div>
         );
 
-        const TimeMachineBlock = ({ currentMonth, setMonth, realAge }) => {
+        const TimeMachineBlock = ({ currentMonth, setMonth, realAge, exactAgeString }) => {
             let titleText = "";
             let emoji = "🐛";
-            if (currentMonth === realAge) { titleText = `Еве сейчас ${currentMonth} месяца`; emoji = "🐣"; } 
-            else if (currentMonth > realAge) { titleText = `Когда Еве будет ${currentMonth} месяцев...`; emoji = "🚀"; } 
-            else { titleText = `Когда Еве было ${currentMonth} месяца...`; emoji = "👶"; }
-            if (currentMonth >= 6) emoji = "🏃‍♀️";
+            
+            // Логика заголовка
+            if (currentMonth === realAge) { 
+                // Если выбранный месяц совпадает с реальным возрастом (в месяцах)
+                titleText = `Еве сейчас ${exactAgeString}`; 
+                emoji = "🐣"; 
+            } else if (currentMonth > realAge) { 
+                titleText = `Когда Еве будет ${currentMonth} ${declOfNum(currentMonth, ['месяц', 'месяца', 'месяцев'])}...`; 
+                emoji = "🚀"; 
+            } else { 
+                titleText = `Когда Еве было ${currentMonth} ${declOfNum(currentMonth, ['месяц', 'месяца', 'месяцев'])}...`; 
+                emoji = "👶"; 
+            }
+            
+            if (currentMonth >= 6 && currentMonth !== realAge) emoji = "🏃‍♀️";
 
             return (
                 <div className="mx-4 mb-6 p-5 glass-panel rounded-3xl shadow-lg border border-white/60 bg-white/80 backdrop-blur-xl relative z-20">
                     <div className="flex items-center justify-between mb-4">
-                        <div>
+                        <div className="flex-grow pr-2">
                             <p className="text-xs font-bold text-rose-400 uppercase tracking-widest mb-1">Машина времени</p>
-                            <h2 className="text-xl font-black text-gray-800 leading-tight">{titleText}</h2>
+                            <h2 className="text-lg font-black text-gray-800 leading-tight">{titleText}</h2>
                         </div>
                         <div className="h-12 w-12 bg-rose-100 rounded-full flex items-center justify-center text-3xl shadow-inner animate-bounce-slow flex-shrink-0">{emoji}</div>
                     </div>
@@ -126,16 +141,15 @@
             );
         };
 
-        const TabContentTimeline = ({ currentMonth, setMonth, realAge }) => {
+        const TabContentTimeline = ({ currentMonth, setMonth, realAge, exactAgeString }) => {
             const data = timelineData[currentMonth];
             const [showTrouble, setShowTrouble] = useState(false);
 
-            // Если данных нет (файл не загрузился или пустой месяц), показываем сообщение
             if (!data) {
                 return (
                     <div className="px-4 pt-10 text-center font-sans">
                         <Header />
-                        <TimeMachineBlock currentMonth={currentMonth} setMonth={setMonth} realAge={realAge} />
+                        <TimeMachineBlock currentMonth={currentMonth} setMonth={setMonth} realAge={realAge} exactAgeString={exactAgeString} />
                         <div className="bg-white p-6 rounded-3xl shadow-sm mt-4">
                             <p className="text-gray-500">Данные для этого месяца пока не загружены или файл data/timeline.js не найден.</p>
                         </div>
@@ -146,7 +160,7 @@
             return (
                 <div className="px-0 pb-28 animate-fade-in relative z-10 font-sans">
                     <Header />
-                    <TimeMachineBlock currentMonth={currentMonth} setMonth={setMonth} realAge={realAge} />
+                    <TimeMachineBlock currentMonth={currentMonth} setMonth={setMonth} realAge={realAge} exactAgeString={exactAgeString} />
                     <div className="px-4">
                         <div className="mb-8">
                             <h2 className="text-2xl font-black text-gray-800 text-center mb-2 leading-tight">{data.funnyTitle}</h2>
@@ -212,7 +226,6 @@
         };
 
         const TabContentEnvironment = ({ currentMonth }) => {
-            // Если данных нет, берем ближайший доступный (например, 2 месяц) или null
             const data = timelineData[currentMonth] || timelineData[2];
             const [isDbOpen, setIsDbOpen] = useState(false);
             
@@ -302,15 +315,47 @@
 
         function App() {
             const [activeTab, setActiveTab] = useState('timeline');
-            const realAge = 3; 
-            const [selectedMonth, setSelectedMonth] = useState(realAge);
+            
+            // --- РАСЧЕТ ВОЗРАСТА ---
+            const birthDate = new Date('2025-11-23'); // Дата рождения Евы
+            const today = new Date();
+            
+            // Расчет месяцев
+            let months = (today.getFullYear() - birthDate.getFullYear()) * 12;
+            months -= birthDate.getMonth();
+            months += today.getMonth();
+            
+            // Расчет дней (с учетом перехода месяца)
+            const birthDay = birthDate.getDate();
+            const currentDay = today.getDate();
+            let days = currentDay - birthDay;
+            
+            if (days < 0) {
+                months--;
+                // Получаем кол-во дней в предыдущем месяце
+                const prevMonthDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                days += prevMonthDate.getDate();
+            }
+
+            // Формируем красивую строку
+            const monthString = `${months} ${declOfNum(months, ['месяц', 'месяца', 'месяцев'])}`;
+            const dayString = `${days} ${declOfNum(days, ['день', 'дня', 'дней'])}`;
+            const exactAgeString = `${monthString}, ${dayString}`;
+
+            // Рассчитываем стартовый месяц для слайдера
+            // Если Еве меньше 2 месяцев, ставим 2 (так как контент начинается с 2)
+            // Иначе ставим её текущий месяц + 1 (так как "сейчас идет X месяц")
+            // Но чтобы не путать, давай просто ставить количество ПОЛНЫХ месяцев, но минимум 2.
+            const initialSliderMonth = Math.max(2, months);
+
+            const [selectedMonth, setSelectedMonth] = useState(initialSliderMonth);
 
             const renderContent = () => {
                 switch (activeTab) {
-                    case 'timeline': return <TabContentTimeline currentMonth={selectedMonth} setMonth={setSelectedMonth} realAge={realAge} />;
+                    case 'timeline': return <TabContentTimeline currentMonth={selectedMonth} setMonth={setSelectedMonth} realAge={initialSliderMonth} exactAgeString={exactAgeString} />;
                     case 'env': return <TabContentEnvironment currentMonth={selectedMonth} />;
                     case 'eco': return <TabContentEco />;
-                    default: return <TabContentTimeline currentMonth={selectedMonth} setMonth={setSelectedMonth} realAge={realAge} />;
+                    default: return <TabContentTimeline currentMonth={selectedMonth} setMonth={setSelectedMonth} realAge={initialSliderMonth} exactAgeString={exactAgeString} />;
                 }
             };
 
